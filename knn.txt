@@ -1,0 +1,31 @@
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, precision_recall_fscore_support
+from sklearn.preprocessing import StandardScaler
+
+sc = StandardScaler()
+train_x1 = sc.fit_transform(train_x)
+test_x1 = sc.fit_transform(test_x1)
+
+# Initialize the Logistic Regression classifier with default parameters
+log_reg_model = LogisticRegression(max_iter=1000)  # Increased max_iter to ensure convergence
+
+# Fit the model to the training data
+log_reg_model.fit(train_x[columns_to_use], train_y_vector)
+
+# Evaluate the model on the test data
+log_reg_predictions = log_reg_model.predict(test_x[columns_to_use])
+
+# Special handling for predictions with value 2 (if needed)
+for idx, pred in enumerate(log_reg_predictions):
+    if pred == 2:
+        log_reg_predictions[idx - 1] = 2
+
+# Print the classification report
+print(classification_report(test_y_vector, log_reg_predictions))
+
+# If you also want to get the precision, recall, and F1-score separately
+precision, recall, f1, _ = precision_recall_fscore_support(test_y_vector, log_reg_predictions, average='weighted')
+
+print(f'Precision: {precision:.2f}')
+print(f'Recall: {recall:.2f}')
+print(f'F1 Score: {f1:.2f}')
