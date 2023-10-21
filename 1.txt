@@ -1,0 +1,121 @@
+from glob import glob
+import os
+
+# import for Simpson's method. This will be helpful for calculating TVi
+from scipy.integrate import simps
+
+
+def extract_features_for_file(filename, existing_features):
+    """
+    Extract features for every single breath in file. To make matters a bit easier, we use
+    existing features that we've already extracted from the file to help speed the process.
+    """
+    patient = filename.split('/')[-2]
+    all_breath_data = process_ventilator_data(filename)
+    all_features = []
+    #print(all_features)
+
+    for breath_data in all_breath_data:
+        breath_id = breath_data['breath_id']
+        existing_breath_features = existing_features[existing_features.breath_id == breath_id].iloc[0]
+
+        flow = breath_data['flow']
+        pressure = breath_data['pressure']
+        
+        # inspiratory time (the amount of time a patient is inhaling for)
+        i_time = existing_breath_features.i_time
+        # exhaled tidal volume
+        tve = existing_breath_features.tve
+        # maximum flow for breath
+        max_flow = existing_breath_features.max_flow
+        # minimum flow for the breath
+        min_flow = existing_breath_features.min_flow
+        # maximum pressure for the breath
+        max_pressure = existing_breath_features.max_pressure
+        # The minimum pressure setting on the ventilator
+        peep = existing_breath_features.peep
+        # The area under the curve of the inspiratory pressure curve
+        ip_auc = existing_breath_features.ip_auc
+        # The area under the curve of the expiratory pressure curve
+        ep_auc = existing_breath_features.ep_auc
+        
+        # This is the array index where the inhalation ends. We divide by 0.02 because
+        # thats how frequently the ventilator samples data, every 0.02 seconds.
+        x0_index = int(i_time / 0.02)
+        
+        
+        '''
+        Write your codes based on the instructions/hints below.
+        # XXXXXXXX
+        # XXXXXXXX
+        # XXXXXXXX
+        #
+        '''
+        #### Hints
+        # Part of your assignment is to extract the following features for all breaths:
+        #
+        # Expiratory Time. The amount of time a patient is exhaling
+        e_time = len(flow)*0.02 - i_time
+        #
+        # I:E ratio. The ratio of inspiratory to expiratory time. Measured by i_time/e_time
+        i_e_ratio = i_time / e_time
+        #
+        # Respiratory rate. The number of breaths a patient is breathing. This is measured by
+        # 60 / (total breath time in seconds)
+        rr = 60/ (i_time + e_time)
+        #
+        # Tidal volume inhaled. The amount of air volume inhaled in the breath. 
+        # Hint: use the simps function.
+        # This will output volume in L/min, convert to ml/sec (* 1000 / 60)
+        flow_l_sec = [flow_value / 60 for flow_value in flow[:x0_index]]
+        tvi = simps(flow_l_sec) * 1000
+        # 
+        # Tidal volume ratio. Measured by tve/tvi
+        tve_tvi_ratio = tve / tvi
+        #
+        # Minimum pressure of the breath
+        min_pressure = min(pressure)
+        #
+        # PIP - peak inspiratory pressure. The peak pressure during inhalation
+        pip = max(pressure[:x0_index])
+        #
+        # MAW - mean airway pressure for inhalation.
+        maw = sum(pressure[:x0_index])/len(pressure[:x0_index])
+        #
+        # XXXXXXXX
+        # XXXXXXXX
+        # XXXXXXXX
+        
+        
+        
+        all_features.append([
+            breath_id, i_time, e_time, i_e_ratio, rr, tvi, tve, tve_tvi_ratio,
+            max_flow, min_flow, max_pressure, min_pressure, pip, maw, 
+            peep, ip_auc, ep_auc, int(patient) 
+        ])
+    columns = [
+        'breath_id', 'i_time', 'e_time', 'i_e_ratio', 'rr', 'tvi', 'tve',
+        'tve_tvi_ratio', 'max_flow', 'min_flow', 'max_pressure',
+        'min_pressure', 'pip', 'maw', 'peep', 'ip_auc', 'ep_auc', 'patient'
+    ]
+    return all_features, columns
+
+
+def remake_dataset(dataset):
+    data_files = glob(os.path.join('data', '*/*.csv'))
+    
+    patient_to_file_map = {}
+    for filename in data_files:
+        patient = filename.split('/')[-2]  # patient is embedded in this part of filename
+        patient_to_file_map[patient] = filename
+
+    data = []
+    # iterate over all the unique patients in the train set
+    for patient in dataset.patient.unique():
+        existing_features = dataset[dataset.patient == patient]
+        filename = patient_to_file_map[str(patient)]
+        breath_data, columns = extract_features_for_file(filename, existing_features)
+        # add breath rows
+        data.extend(breath_data)
+    # create new data frame with the new added information
+    return pd.DataFrame(data, columns=columns)
