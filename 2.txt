@@ -1,0 +1,48 @@
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, precision_recall_fscore_support
+import numpy as np
+
+# Lists to store metrics
+precision_list = []
+recall_list = []
+f1_score_list = []
+
+# don't use patient and breath_id columns
+columns_to_use = list(set(train_x.columns).difference(['patient', 'breath_id']))
+
+# Dictionary to store feature importances
+feature_importances_dict = {column: 0 for column in columns_to_use}
+
+for i in range(10):
+    # Initialize model
+    model = RandomForestClassifier()
+    
+    # Fit the model to training 
+    model.fit(train_x[columns_to_use], train_y_vector)
+    
+    # Now that the model is fitted, evaluate how well it is performing
+    predictions = model.predict(test_x[columns_to_use])
+    
+    for idx, pred in enumerate(predictions):
+        if pred == 2:
+            predictions[idx-1] = 2
+    
+    # Collect and store the metrics
+    precision, recall, f1_score, _ = precision_recall_fscore_support(test_y_vector, predictions, average='weighted')
+    precision_list.append(precision)
+    recall_list.append(recall)
+    f1_score_list.append(f1_score)
+    
+    # Aggregate feature importances
+    for column, importance in zip(columns_to_use, model.feature_importances_):
+        feature_importances_dict[column] += importance
+
+# Average the feature importances over 10 runs
+for column in feature_importances_dict:
+    feature_importances_dict[column] /= 10
+
+# Output the metrics
+print("Precision: ", np.mean(precision_list))
+print("Recall: ", np.mean(recall_list))
+print("F1 Score: ", np.mean(f1_score_list))
+print("Average Feature Importances: ", feature_importances_dict)
